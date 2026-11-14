@@ -36,6 +36,7 @@
 #include "qf3dterrainprovider.h"
 #include "qfapp.h"
 #include "qfappinterface.h"
+#include "qfattachmentuploader.h"
 #include "qfbarcodeimageprovider.h"
 #include "qfcloudconnection.h"
 #include "qfcloudproject.h"
@@ -421,6 +422,7 @@ void QgisMobileapp::registerGlobalVariables()
   // Calculate device pixels
   rootContext()->setContextProperty( "qgisProject", mProject );
   rootContext()->setContextProperty( "iface", mIface );
+  rootContext()->setContextProperty( "QFieldAttachmentUploader", new QfAttachmentUploader( this ) );
   rootContext()->setContextProperty( "pluginManager", mPluginManager );
   rootContext()->setContextProperty( "settings", &mSettings );
   rootContext()->setContextProperty( "flatLayerTree", mFlatLayerTree );
