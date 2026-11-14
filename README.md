@@ -1,3 +1,6 @@
+👉 **[Xem hướng dẫn chi tiết và thông tin phiên bản custom mới tại đây](myREADME.md)**
+
+
 [![Read the Docs](https://img.shields.io/badge/Read-the%20Docs-green.svg)](https://docs.qfield.org/)
 [![Community Platform](https://img.shields.io/discourse/topics?server=https://community.qfield.org)](https://community.qfield.org)
 [![Sponsor](https://img.shields.io/static/v1?label=Support&message=%E2%9D%A4)](https://github.com/sponsors/opengisch)
