@@ -66,7 +66,12 @@ function Invoke-DockerBash {
         "-v", "${GradleVolume}:/root/.gradle"
     )
     $DockerArguments += $ExtraArguments
-    $DockerArguments += @($DockerImage, "bash", "-lc", $Command)
+    # PowerShell on Windows uses CRLF. Normalize before passing the command to
+    # Bash so a trailing carriage return cannot break line continuations or
+    # become part of an argument.
+    $NormalizedCommand = $Command -replace "`r`n", "`n"
+    $NormalizedCommand = $NormalizedCommand -replace "`r", ""
+    $DockerArguments += @($DockerImage, "bash", "-lc", $NormalizedCommand)
 
     & docker @DockerArguments
     if ($LASTEXITCODE -ne 0) {
@@ -98,14 +103,7 @@ foreach ($Volume in @($BuildVolume, $GradleVolume)) {
 Write-Host "[2/5] Configure và compile source..." -ForegroundColor Cyan
 $BuildCommand = @"
 set -e
-cmake -S /usr/src/qfield -B /usr/src/build -G Ninja \
-  -DAPP_PACKAGE_NAME=qfield \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DVCPKG_TARGET_TRIPLET=arm64-android \
-  -DWITH_SPIX=OFF \
-  -DWITH_ALL_FILES_ACCESS=OFF \
-  -DAPK_VERSION_CODE=$VersionCode \
-  -DAPP_VERSION_STR='$VersionName'
+cmake -S /usr/src/qfield -B /usr/src/build -G Ninja -DAPP_PACKAGE_NAME=qfield -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=arm64-android -DWITH_SPIX=OFF -DWITH_ALL_FILES_ACCESS=OFF -DAPK_VERSION_CODE=$VersionCode -DAPP_VERSION_STR='$VersionName'
 cmake --build /usr/src/build --target qfield -j2
 "@
 Invoke-DockerBash $BuildCommand
@@ -115,15 +113,8 @@ $PackageCommand = @"
 set -e
 mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a
 cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so /usr/src/build/src/app/android-build/libs/arm64-v8a/
-/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt \
-  --input /usr/src/build/src/app/android-qfield-deployment-settings.json \
-  --output /usr/src/build/src/app/android-build \
-  --deployment bundled \
-  --android-platform android-36 \
-  --gradle \
-  --release
-cp /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk \
-  $UnsignedApk
+/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release
+cp /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk $UnsignedApk
 "@
 Invoke-DockerBash $PackageCommand
 
@@ -134,13 +125,7 @@ $SigningArguments = @(
 )
 $SigningCommand = @"
 set -e
-/android-sdk/build-tools/35.0.1/apksigner sign \
-  --ks $KeystorePath \
-  --ks-key-alias $($KeystoreProperties.keyAlias) \
-  --ks-pass pass:`$STOREPASS \
-  --key-pass pass:`$KEYPASS \
-  --out $SignedApk \
-  $UnsignedApk
+/android-sdk/build-tools/35.0.1/apksigner sign --ks $KeystorePath --ks-key-alias $($KeystoreProperties.keyAlias) --ks-pass pass:`$STOREPASS --key-pass pass:`$KEYPASS --out $SignedApk $UnsignedApk
 "@
 Invoke-DockerBash $SigningCommand $SigningArguments
 

@@ -1,5 +1,56 @@
+## Lần sau sau khi sửa code, mở PowerShell tại thư mục QField:
 
-## `build-custom-release.ps1`
+```powershell
+cd D:\qfield-opensource\QField
+```
+
+Chạy build release đã ký:
+
+```powershell
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 3 `
+  -VersionName "1.0.2 - Custom"
+```
+
+Trong đó:
+
+- `VersionCode` phải tăng thủ công: `2` → `3` → `4`...
+- `VersionName` cũng tăng thủ công theo phiên bản mong muốn.
+- Không cần tải lại dependency; Docker volume và Gradle cache sẽ được dùng lại.
+- APK tạo tại:
+
+```text
+artifacts\android-build-release-custom-v3.apk
+```
+
+Script nằm ở `build-custom-release.ps1`.
+
+Chỉ dùng tùy chọn `-BuildDockerImage` khi Docker image chưa tồn tại hoặc Dockerfile đã thay đổi:
+
+```powershell
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 3 `
+  -VersionName "1.0.2 - Custom" `
+  -BuildDockerImage
+```
+
+Quy trình ngắn gọn:
+
+```powershell
+git pull
+# sửa code
+git add .
+git commit -m "Update custom feature"
+git push origin dev
+
+.\scripts\build-custom-release.ps1 -VersionCode 3 -VersionName "1.0.2 - Custom"
+```
+
+Không sửa lại `CMakeLists.txt` để tăng version nếu đã truyền `-VersionCode` và `-VersionName`; script sẽ truyền version vào CMake khi build.
+
+
+
+## `build-custom-release.ps1`7
 
 Script tự động:
 
