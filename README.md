@@ -75,8 +75,9 @@ SHA-256 hash of signing certificate:
 
 ```5a7dd946a4b700c081a5bd375dbc8f0d11aa89d53832567ce5b8a92088e0e898```
 
-👉 **[Xem hướng dẫn chi tiết và thông tin phiên bản custom mới tại đây](myREADME.md)**
-
 Use the following command to verify the hash of the signing certificate:
 
 ```apksigner verify --print-certs [filename.apk] | grep "5a7dd946a4b700c081a5bd375dbc8f0d11aa89d53832567ce5b8a92088e0e898"```
+
+
+👉 **[Xem hướng dẫn chi tiết và thông tin phiên bản custom mới tại đây](myREADME.md)**
