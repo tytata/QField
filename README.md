@@ -1,5 +1,6 @@
 👉 **[Xem hướng dẫn chi tiết và thông tin phiên bản custom mới tại đây](myREADME.md)**
 
+👉 **[Xem hướng dẫn build phiên bản custom mới tại đây](mybuild.md)**
 
 [![Read the Docs](https://img.shields.io/badge/Read-the%20Docs-green.svg)](https://docs.qfield.org/)
 [![Community Platform](https://img.shields.io/discourse/topics?server=https://community.qfield.org)](https://community.qfield.org)
