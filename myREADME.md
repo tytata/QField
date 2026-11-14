@@ -97,3 +97,61 @@ git commit -m "Nang cap nen tang len QField 4.4"
 git push origin dev
 Hãy thận trọng khi sử dụng mã.
 Bạn đã lưu lại quy trình này chưa? Bước tiếp theo bạn có cần hướng dẫn cách thiết lập môi trường build (biên dịch) mã nguồn QField thành file .apk (Android) hoặc .exe (Windows) trên máy của mình không?
+
+## Có, sau lần build đầu tiên thì build lại thường nhanh hơn nhiều.
+
+Nếu chỉ thêm API hoặc sửa C++/QML/Java:
+
+- Không tải lại 229 dependency.
+- CMake/vcpkg dùng lại dữ liệu trong `qfield-build-arm64`.
+- Chỉ biên dịch lại file bị ảnh hưởng.
+- Thường mất vài phút, tùy số lượng code thay đổi.
+
+Chỉ chậm lại nếu thêm thư viện mới vào `vcpkg.json`, đổi Qt/NDK, đổi ABI hoặc xóa volume build.
+
+Sau khi cập nhật code:
+
+```powershell
+git checkout dev
+git pull origin dev
+```
+
+Sau khi muốn đóng gói bản release:
+
+```powershell
+git checkout release
+git merge dev
+```
+
+Đảm bảo container build cũ đã kết thúc, sau đó chạy:
+
+```powershell
+docker run --rm --user root `
+  -v D:\qfield-opensource\QField:/usr/src/qfield `
+  -v qfield-build-arm64:/usr/src/build `
+  qfield_and_dev bash -lc `
+  "cmake -S /usr/src/qfield -B /usr/src/build -G Ninja `
+  -D CMAKE_BUILD_TYPE=Release `
+  -D VCPKG_TARGET_TRIPLET=arm64-android `
+  -D ANDROID_NDK_VERSION=28.2.13676358 `
+  -D ANDROID_SDK_ROOT=/android-sdk `
+  -D ANDROID_BUILD_TOOLS_VERSION=35.0.1 `
+  -D WITH_SPIX=OFF `
+  -D WITH_ALL_FILES_ACCESS=OFF `
+  -D APP_PACKAGE_NAME=qfield `
+  -D APP_ICON=qfield_logo `
+  -D APP_NAME=QField `
+  -D VCPKG_INSTALL_OPTIONS='--allow-unsupported'; `
+  cmake --build /usr/src/build; `
+  cmake --build /usr/src/build --target bundle --config Release; `
+  mkdir -p /usr/src/qfield/artifacts; `
+  find /usr/src/build -type f -name '*.apk' -exec cp -v {} /usr/src/qfield/artifacts/ \; "
+```
+
+APK sẽ nằm trong:
+
+```text
+D:\qfield-opensource\QField\artifacts
+```
+
+Không xóa volume `qfield-build-arm64`; đó là phần giúp các lần build sau nhanh hơn.
