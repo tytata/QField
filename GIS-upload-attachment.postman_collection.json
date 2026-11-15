@@ -1,0 +1,224 @@
+{
+  "info": {
+    "_postman_id": "a4bd3f45-ce39-47a9-b133-73514d7185ae",
+    "name": "GIS-upload-attachment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "4311572",
+    "_collection_link": "https://go.postman.co/collection/4311572-a4bd3f45-ce39-47a9-b133-73514d7185ae?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Kiểm tra cấu hình Attachments của layer",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "type": "text",
+              "key": "f",
+              "value": "pjson"
+            },
+            {
+              "type": "text",
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{feature_server}}/7?f=pjson&token={{arcgis_token}}",
+          "host": [
+            "{{feature_server}}"
+          ],
+          "path": [
+            "7"
+          ],
+          "query": [
+            {
+              "key": "f",
+              "value": "pjson"
+            },
+            {
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Tìm OBJECTID của cột điện",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "type": "text",
+              "key": "where",
+              "value": "ID='{{pole_business_id}}'"
+            },
+            {
+              "type": "text",
+              "key": "outFields",
+              "value": "OBJECTID,ID"
+            },
+            {
+              "type": "text",
+              "key": "returnGeometry",
+              "value": "false"
+            },
+            {
+              "type": "text",
+              "key": "f",
+              "value": "json"
+            },
+            {
+              "type": "text",
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{feature_server}}/7/query?where=ID='{{pole_business_id}}'&outFields=OBJECTID,ID&returnGeometry=false&f=json&token={{arcgis_token}}",
+          "host": [
+            "{{feature_server}}"
+          ],
+          "path": [
+            "7",
+            "query"
+          ],
+          "query": [
+            {
+              "key": "where",
+              "value": "ID='{{pole_business_id}}'"
+            },
+            {
+              "key": "outFields",
+              "value": "OBJECTID,ID"
+            },
+            {
+              "key": "returnGeometry",
+              "value": "false"
+            },
+            {
+              "key": "f",
+              "value": "json"
+            },
+            {
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Upload ảnh vào cột điện đó",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "type": "text",
+              "key": "f",
+              "value": "json"
+            },
+            {
+              "type": "text",
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            },
+            {
+              "type": "file",
+              "contentType": "image/jpeg",
+              "key": "attachment",
+              "src": "postman-cloud:///1f1e0966-eaf3-4b50-8585-5a0b5388b679"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{feature_server}}/7/{{object_id}}/addAttachment",
+          "host": [
+            "{{feature_server}}"
+          ],
+          "path": [
+            "7",
+            "{{object_id}}",
+            "addAttachment"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Xác minh attachment trên server",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "type": "text",
+              "key": "objectIds",
+              "value": "{{object_id}}"
+            },
+            {
+              "type": "text",
+              "key": "f",
+              "value": "json"
+            },
+            {
+              "type": "text",
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{feature_server}}/7/queryAttachments?objectIds={{object_id}}&f=json&token={{arcgis_token}}",
+          "host": [
+            "{{feature_server}}"
+          ],
+          "path": [
+            "7",
+            "queryAttachments"
+          ],
+          "query": [
+            {
+              "key": "objectIds",
+              "value": "{{object_id}}"
+            },
+            {
+              "key": "f",
+              "value": "json"
+            },
+            {
+              "key": "token",
+              "value": "{{arcgis_token}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
