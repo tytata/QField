@@ -77,7 +77,7 @@ namespace
 
     const QByteArray headers = request.left( headerEnd );
     const QByteArray encodedBody = request.mid( headerEnd + 4 );
-    if ( headers.contains( "Transfer-Encoding: chunked", Qt::CaseInsensitive ) )
+    if ( headers.toLower().contains( "transfer-encoding: chunked" ) )
     {
       return decodeChunkedBody( encodedBody, body );
     }
@@ -176,6 +176,7 @@ TEST_CASE( "QfXmlHttpRequest writes multipart text fields before file parts" )
 
   REQUIRE( requestCaptured );
   REQUIRE( responseStatus == 200 );
+  REQUIRE( multipartBody.contains( "filename=\"photo.jpg\"" ) );
   REQUIRE( multipartBody.contains( attachmentContents ) );
 
   const int formatFieldPosition = multipartBody.indexOf( "name=\"f\"" );
