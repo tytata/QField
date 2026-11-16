@@ -26,6 +26,7 @@ email                : kaustuv (at) opengis.ch
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QJsonValue>
+#include <QList>
 #include <QNetworkReply>
 #include <QTimer>
 #include <qfcloudutils.h>
@@ -830,6 +831,14 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
     return true;
   };
 
+  struct DeferredFilePart
+  {
+    QString fieldName;
+    QUrl fileUrl;
+    QString fallbackText;
+  };
+  QList<DeferredFilePart> deferredFileParts;
+
   QVariantMap::ConstIterator fieldIterator = bodyMap.constBegin();
   for ( ; fieldIterator != bodyMap.constEnd(); ++fieldIterator )
   {
@@ -847,8 +856,9 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
           if ( isFileUrlString( stringValue ) )
           {
             const QUrl fileUrl = QfUrlUtils::fromString( stringValue );
-            if ( fileUrl.isLocalFile() && appendFilePart( fieldName, fileUrl ) )
+            if ( fileUrl.isLocalFile() )
             {
+              deferredFileParts.append( DeferredFilePart { fieldName, fileUrl, stringValue } );
               continue;
             }
           }
@@ -873,8 +883,9 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
       if ( isFileUrlString( stringValue ) )
       {
         const QUrl fileUrl = QfUrlUtils::fromString( stringValue );
-        if ( appendFilePart( fieldName, fileUrl ) )
+        if ( fileUrl.isLocalFile() )
         {
+          deferredFileParts.append( DeferredFilePart { fieldName, fileUrl, stringValue } );
           continue;
         }
       }
@@ -889,6 +900,14 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
     }
 
     appendTextPart( fieldName, jsonValue.toVariant().toString() );
+  }
+
+  for ( const DeferredFilePart &filePart : deferredFileParts )
+  {
+    if ( !appendFilePart( filePart.fieldName, filePart.fileUrl ) )
+    {
+      appendTextPart( filePart.fieldName, filePart.fallbackText );
+    }
   }
 
   return multipartBody;
