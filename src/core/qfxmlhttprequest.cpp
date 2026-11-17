@@ -845,7 +845,7 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
     const QString &fieldName = fieldIterator.key();
     const QVariant &fieldValue = fieldIterator.value();
 
-    if ( fieldValue.canConvert<QVariantList>() )
+    if ( fieldValue.typeId() == QMetaType::QVariantList )
     {
       const QVariantList listValues = fieldValue.toList();
       for ( const QVariant &listValue : listValues )
