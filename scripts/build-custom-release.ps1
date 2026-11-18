@@ -131,9 +131,12 @@ Invoke-DockerBash $BuildCommand
 Write-Host "[3/5] Đóng gói APK release unsigned..." -ForegroundColor Cyan
 $PackageCommand = @"
 set -e
+rm -rf /usr/src/build/src/app/android-build
 mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a
 cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so /usr/src/build/src/app/android-build/libs/arm64-v8a/
-/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release
+/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --copy-dependencies-only
+find /usr/src/build/src/app/android-build/libs/arm64-v8a -type f -name '*.so' -exec "`$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --strip-debug {} +
+/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release --no-build
 cp /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk $UnsignedApk
 "@
 Invoke-DockerBash $PackageCommand
