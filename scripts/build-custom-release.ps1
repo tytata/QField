@@ -81,8 +81,18 @@ function Invoke-DockerBash {
 
 Write-Host "[1/5] Kiểm tra Docker image và volume..." -ForegroundColor Cyan
 
-& docker image inspect $DockerImage *> $null
-if ($LASTEXITCODE -ne 0 -or $BuildDockerImage) {
+$OriginalErrorActionPreference = $ErrorActionPreference
+try {
+    # A missing image is expected on a new machine; inspect it via exit code.
+    $ErrorActionPreference = "Continue"
+    & docker image inspect $DockerImage *> $null
+    $ImageInspectExitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $OriginalErrorActionPreference
+}
+
+if ($ImageInspectExitCode -ne 0 -or $BuildDockerImage) {
     Write-Host "Đang build Docker image $DockerImage..." -ForegroundColor Yellow
     & docker build (Join-Path $RepoRoot ".docker\android_dev") -t $DockerImage
     if ($LASTEXITCODE -ne 0) {
@@ -91,8 +101,18 @@ if ($LASTEXITCODE -ne 0 -or $BuildDockerImage) {
 }
 
 foreach ($Volume in @($BuildVolume, $GradleVolume)) {
-    & docker volume inspect $Volume *> $null
-    if ($LASTEXITCODE -ne 0) {
+    $OriginalErrorActionPreference = $ErrorActionPreference
+    try {
+        # Missing volumes are expected; use the exit code to create them below.
+        $ErrorActionPreference = "Continue"
+        & docker volume inspect $Volume *> $null
+        $VolumeInspectExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $OriginalErrorActionPreference
+    }
+
+    if ($VolumeInspectExitCode -ne 0) {
         & docker volume create $Volume
         if ($LASTEXITCODE -ne 0) {
             throw "Không tạo được Docker volume $Volume."
@@ -103,7 +123,7 @@ foreach ($Volume in @($BuildVolume, $GradleVolume)) {
 Write-Host "[2/5] Configure và compile source..." -ForegroundColor Cyan
 $BuildCommand = @"
 set -e
-cmake -S /usr/src/qfield -B /usr/src/build -G Ninja -DAPP_PACKAGE_NAME=qfield -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=arm64-android -DWITH_SPIX=OFF -DWITH_ALL_FILES_ACCESS=OFF -DAPK_VERSION_CODE=$VersionCode -DAPP_VERSION_STR='$VersionName'
+cmake -S /usr/src/qfield -B /usr/src/build -G Ninja -DAPP_PACKAGE_NAME=qfield -DCMAKE_BUILD_TYPE=Release -DANDROID_SDK_ROOT=/android-sdk -DVCPKG_TARGET_TRIPLET=arm64-android -DWITH_SPIX=OFF -DWITH_ALL_FILES_ACCESS=OFF -DAPK_VERSION_CODE=$VersionCode -DAPP_VERSION_STR='$VersionName'
 cmake --build /usr/src/build --target qfield -j2
 "@
 Invoke-DockerBash $BuildCommand

@@ -1,305 +1,277 @@
-## Lần sau sau khi sửa code, mở PowerShell tại thư mục QField:
+# Build QField custom
 
-```powershell
-cd D:\qfield-opensource\QField
-```
+Tài liệu này mô tả source hiện tại trên nhánh `dev`, gồm API upload attachment
+và quy trình tạo APK Android custom.
 
-Chạy build release đã ký:
+## 1. Cập nhật source
 
-```powershell
-.\scripts\build-custom-release.ps1 `
-  -VersionCode 3 `
-  -VersionName "1.0.2 - Custom"
-```
+Sau khi clone lần đầu:
 
-Trong đó:
-
-- `VersionCode` phải tăng thủ công: `2` → `3` → `4`...
-- `VersionName` cũng tăng thủ công theo phiên bản mong muốn.
-- Không cần tải lại dependency; Docker volume và Gradle cache sẽ được dùng lại.
-- APK tạo tại:
-
-```text
-artifacts\android-build-release-custom-v3.apk
-```
-
-Script nằm ở `build-custom-release.ps1`.
-
-Chỉ dùng tùy chọn `-BuildDockerImage` khi Docker image chưa tồn tại hoặc Dockerfile đã thay đổi:
-
-```powershell
-.\scripts\build-custom-release.ps1 `
-  -VersionCode 3 `
-  -VersionName "1.0.2 - Custom" `
-  -BuildDockerImage
-```
-
-Quy trình ngắn gọn:
-
-```powershell
-git pull
-# sửa code
-git add .
-git commit -m "Update custom feature"
-git push origin dev
-
-.\scripts\build-custom-release.ps1 -VersionCode 3 -VersionName "1.0.2 - Custom"
-```
-
-Không sửa lại `CMakeLists.txt` để tăng version nếu đã truyền `-VersionCode` và `-VersionName`; script sẽ truyền version vào CMake khi build.
-
-
-
-## `build-custom-release.ps1`7
-
-Script tự động:
-
-1. Kiểm tra Docker image và volume.
-2. Configure CMake.
-3. Build source.
-4. Đóng gói APK release.
-5. Ký bằng keystore custom.
-6. Verify chữ ký APK.
-
-Lần sau chỉ cần chạy:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-
-.\scripts\build-custom-release.ps1 `
-  -VersionCode 2 `
-  -VersionName "1.0.1 - Custom"
-```
-
-Bản kế tiếp tăng `VersionCode`:
-
-```powershell
-.\scripts\build-custom-release.ps1 `
-  -VersionCode 3 `
-  -VersionName "1.0.2 - Custom"
-```
-
-APK kết quả nằm trong thư mục `artifacts/`, ví dụ:
-
-`android-build-release-custom-v2.apk`
-
-Nếu máy khác chưa có Docker image:
-
-```powershell
-.\scripts\build-custom-release.ps1 `
-  -VersionCode 2 `
-  -VersionName "1.0.1 - Custom" `
-  -BuildDockerImage
-```
-
-Lưu ý:
-
-- `VersionCode` phải tăng thủ công: `1 → 2 → 3`.
-- `VersionName` cũng truyền thủ công.
-- Dependency và Gradle cache được tự động tái sử dụng qua Docker volume.
-- Keystore và `keystore.properties` phải được copy riêng sang máy khác.
-- Không commit keystore vào Git.
-- Script cần được commit lên Git cùng source. Hiện `CMakeLists.txt` cũng đang có thay đổi version local; khi dùng script, version truyền bằng tham số sẽ được ưu tiên.
-
-
-================
-## quy trình và chạy thủ công
-Dưới đây là quy trình đầy đủ cho trường hợp:
-
-- Đã sửa code trên `dev`.
-- Đã merge code vào `release`.
-- Muốn build APK release.
-- APK được ký bằng keystore custom hiện tại.
-- Package vẫn là `ch.opengis.qfield`.
-
-## 1. Cập nhật nhánh release
-
-Nếu đã merge rồi, vẫn nên kiểm tra:
-
-```powershell
-git checkout release
-git pull origin release
+```bash
+git clone --branch dev https://github.com/tytata/QField.git
+cd QField
 git status
 ```
 
-Nếu chưa merge:
+Những lần sau:
 
-```powershell
-git merge origin/dev
-git push origin release
+```bash
+git switch dev
+git pull --ff-only origin dev
+git status
 ```
 
-Từ bước này trở đi, build phải thực hiện trên nhánh `release`.
+Không dùng `git checkout` hoặc `git reset --hard` nếu thư mục đang có thay đổi
+chưa được lưu.
 
-## 2. Tăng version
+## 2. File local cần chuẩn bị
 
-Hiện tại version local chưa tự tăng.
-
-Cần tăng thủ công hai giá trị:
-
-| Giá trị | Ý nghĩa | Ví dụ |
-|---|---|---|
-| `APK_VERSION_CODE` | Số dùng để Android nhận diện bản cập nhật | `1 → 2 → 3` |
-| `APP_VERSION_STR` | Tên version hiển thị cho người dùng | `1.0.0 - Custom` |
-
-Các giá trị này được khai báo trong `CMakeLists.txt` và Android Manifest sử dụng chúng tại `AndroidManifest.xml.in`.
-
-Ví dụ:
-
-```powershell
-$VersionCode = 2
-$VersionName = "1.0.0 - Custom"
-```
-
-Lần release tiếp theo:
-
-```powershell
-$VersionCode = 3
-$VersionName = "1.0.1 - Custom"
-```
-
-Không được dùng lại `APK_VERSION_CODE` cũ nếu muốn cài đè bản trước.
-
-Lưu ý: `build-vcpkg.sh` hiện đang cố định `APK_VERSION_CODE=1`, vì vậy không dùng script này trực tiếp cho release nếu chưa sửa. Ta dùng lệnh CMake bên dưới để truyền version thủ công.
-
-## 3. Build code
-
-Chạy trên PowerShell tại thư mục project:
-
-```powershell
-docker run --rm `
-  -v "${PWD}:/usr/src/qfield" `
-  -v qfield-build-arm64:/usr/src/build `
-  -v qfield-gradle-cache:/root/.gradle `
-  qfield_and_dev `
-  bash -lc "cmake -S /usr/src/qfield -B /usr/src/build -G Ninja -DAPP_PACKAGE_NAME=qfield -DCMAKE_BUILD_TYPE=Release -DVCPKG_TARGET_TRIPLET=arm64-android -DWITH_SPIX=OFF -DWITH_ALL_FILES_ACCESS=OFF -DAPK_VERSION_CODE=$VersionCode -DAPP_VERSION_STR='$VersionName' && cmake --build /usr/src/build --target qfield -j2"
-```
-
-Ở bước này:
-
-- Docker image được dùng lại tự động.
-- Dependency trong volume `qfield-build-arm64` được dùng lại tự động.
-- Code C++/QML thay đổi sẽ được build incremental.
-- `APK_VERSION_CODE` và `APP_VERSION_STR` là phần truyền thủ công.
-- Nếu `vcpkg.json` thay đổi, vcpkg sẽ kiểm tra và cài thêm dependency cần thiết.
-
-## 4. Đóng gói APK release unsigned
-
-Hiện CPack của project đang có vấn đề đường dẫn staging, nên dùng lệnh deploy thủ công:
-
-```powershell
-docker run --rm `
-  -v "${PWD}:/usr/src/qfield" `
-  -v qfield-build-arm64:/usr/src/build `
-  -v qfield-gradle-cache:/root/.gradle `
-  qfield_and_dev `
-  bash -lc "mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a && cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so /usr/src/build/src/app/android-build/libs/arm64-v8a/ && /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release"
-```
-
-APK unsigned sẽ nằm ở:
-
-```text
-build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
-```
-
-Copy ra thư mục artifacts:
-
-```powershell
-New-Item -ItemType Directory -Force artifacts | Out-Null
-
-docker run --rm `
-  -v "${PWD}:/usr/src/qfield" `
-  -v qfield-build-arm64:/usr/src/build `
-  qfield_and_dev `
-  bash -lc "cp /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk /usr/src/qfield/artifacts/android-build-release-unsigned.apk"
-```
-
-## 5. Ký APK bằng keystore custom
-
-Keystore hiện tại:
-
-```text
-platform/android/keystores/qfield-dev.keystore
-```
-
-Thông tin local nằm trong:
+Các file sau không nằm trong Git và phải được copy riêng vào máy build:
 
 ```text
 platform/android/keystore.properties
+platform/android/keystores/qfield-dev.keystore
 ```
 
-Đọc password từ file:
+Trong [`.gitignore`](.gitignore), dòng 17 bỏ qua `local.properties`, dòng 18 bỏ
+qua `keystore.properties`, và dòng 19 bỏ qua thư mục keystore. Không commit các
+file này.
+
+`keystore.properties` phải có ít nhất các khóa:
+
+```properties
+storePassword=...
+keyPassword=...
+keyAlias=qfield-dev
+```
+
+## 3. Build APK trên Windows
+
+### Yêu cầu
+
+- Git
+- Docker Desktop đang chạy, nên dùng backend WSL2
+- PowerShell
+- `keystore.properties` và keystore custom như phần trên
+
+Mở PowerShell tại thư mục repository:
 
 ```powershell
-$KeystoreProps = @{}
-
-Get-Content .\platform\android\keystore.properties | ForEach-Object {
-    $Key, $Value = $_ -split '=', 2
-    $KeystoreProps[$Key] = $Value
-}
+cd D:\qfield-opensource\QField
+Set-ExecutionPolicy -Scope Process Bypass
 ```
 
-Ký APK:
+Build release, ký APK và kiểm tra chữ ký bằng script:
 
 ```powershell
-docker run --rm `
-  -v "${PWD}:/usr/src/qfield" `
-  -e "STOREPASS=$($KeystoreProps.storePassword)" `
-  -e "KEYPASS=$($KeystoreProps.keyPassword)" `
-  qfield_and_dev `
-  bash -lc ' /android-sdk/build-tools/35.0.1/apksigner sign --ks /usr/src/qfield/platform/android/keystores/qfield-dev.keystore --ks-key-alias qfield-dev --ks-pass pass:$STOREPASS --key-pass pass:$KEYPASS --out /usr/src/qfield/artifacts/android-build-release-custom.apk /usr/src/qfield/artifacts/android-build-release-unsigned.apk '
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 7 `
+  -VersionName "1.0.6 - Custom"
 ```
 
-Kiểm tra APK đã ký:
+`VersionCode` phải tăng sau mỗi bản phát hành. Script dùng lại Docker image,
+build volume và Gradle cache nếu chúng đã tồn tại.
+
+Nếu image chưa tồn tại, script sẽ tự build image. Sau khi thay đổi
+[`.docker/android_dev/Dockerfile`](.docker/android_dev/Dockerfile), hoặc muốn ép
+build lại image, dùng:
 
 ```powershell
-docker run --rm `
-  -v "${PWD}:/usr/src/qfield" `
-  qfield_and_dev `
-  bash -lc "/android-sdk/build-tools/35.0.1/apksigner verify --verbose --print-certs /usr/src/qfield/artifacts/android-build-release-custom.apk"
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 7 `
+  -VersionName "1.0.6 - Custom" `
+  -BuildDockerImage
 ```
 
-Nếu thấy:
+APK được tạo tại:
 
 ```text
-Verifies
-Number of signers: 1
-Signer #1 certificate DN: CN=QField Dev
+artifacts/android-build-release-custom-v7.apk
 ```
 
-là APK đã ký thành công.
+### Android SDK đang dùng
 
-## Cái gì tự động và cái gì thủ công?
+Cấu hình hiện tại đồng bộ với `release-4_3`:
 
-| Công việc | Tự động? |
-|---|---|
-| Dùng lại Docker image | Có |
-| Dùng lại dependency trong volume | Có |
-| Build incremental code | Có |
-| Kiểm tra/cài dependency mới | Có |
-| Tăng `APK_VERSION_CODE` | Không, phải tăng thủ công |
-| Đổi `APP_VERSION_STR` | Không, phải nhập thủ công |
-| Ký bằng keystore | Hiện tại phải chạy lệnh ký |
-| Tạo APK release | Có sau khi chạy lệnh deploy |
-| Package name `ch.opengis.qfield` | Giữ cố định |
-| Keystore | Phải dùng đúng keystore cũ |
+```text
+compileSdkVersion / targetSdkVersion: 36
+androiddeployqt --android-platform: android-36
+build-tools: 35.0.1
+minSdkVersion: 28
+```
 
-## Ví dụ release tiếp theo
+Dockerfile cài cả `platforms;android-35` và `platforms;android-36`. Sau khi
+clone source trên máy mới, hoặc sau khi Dockerfile thay đổi, bắt buộc build lại
+image:
 
 ```powershell
-git checkout release
-git pull origin release
-
-$VersionCode = 3
-$VersionName = "1.0.1 - Custom"
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 7 `
+  -VersionName "1.0.6 - Custom" `
+  -BuildDockerImage
 ```
 
-Sau đó chạy lần lượt:
+Không nên kết luận APK đúng chỉ dựa vào tên `release`; hãy kiểm tra file thực tế:
 
-1. Lệnh build ở bước 3.
-2. Lệnh đóng gói ở bước 4.
-3. Lệnh ký ở bước 5.
-4. Kiểm tra APK bằng `apksigner`.
-5. Gửi file `android-build-release-custom.apk` cho thiết bị Android.
+```powershell
+Get-Item .\artifacts\*.apk | Select-Object Name,Length,LastWriteTime
+```
 
-Keystore không được commit Git. Chỉ commit source và `.gitignore`. Nếu mất keystore, các bản APK sau không thể cập nhật đè lên APK cũ đã ký bằng keystore đó.
+## 4. Build trên Linux
+
+### 4.1. Build QField desktop Linux
+
+Đây là build ứng dụng Linux, không tạo APK Android:
+
+```bash
+git switch dev
+git pull --ff-only origin dev
+chmod +x scripts/build-for-linux.sh
+./scripts/build-for-linux.sh
+```
+
+Script này tạo build directory `build-x64-linux`.
+
+### 4.2. Build APK Android custom bằng Docker
+
+Trên Linux, dùng Docker image giống Windows để kết quả không phụ thuộc Qt,
+NDK và Gradle cài trực tiếp trên máy:
+
+```bash
+git switch dev
+git pull --ff-only origin dev
+docker build .docker/android_dev -t qfield_and_dev
+docker volume create qfield-build-arm64 2>/dev/null || true
+docker volume create qfield-gradle-cache 2>/dev/null || true
+```
+
+Copy hai file local vào `platform/android/`, sau đó configure và build:
+
+```bash
+docker run --rm \
+  -v "$PWD:/usr/src/qfield" \
+  -v qfield-build-arm64:/usr/src/build \
+  -v qfield-gradle-cache:/root/.gradle \
+  qfield_and_dev bash -lc '
+    set -e
+    cmake -S /usr/src/qfield -B /usr/src/build -G Ninja \
+      -DAPP_PACKAGE_NAME=qfield \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DANDROID_SDK_ROOT=/android-sdk \
+      -DVCPKG_TARGET_TRIPLET=arm64-android \
+      -DWITH_SPIX=OFF \
+      -DWITH_ALL_FILES_ACCESS=OFF \
+      -DAPK_VERSION_CODE=7 \
+      -DAPP_VERSION_STR="1.0.6 - Custom"
+    cmake --build /usr/src/build --target qfield -j2
+  '
+```
+
+Đóng gói APK unsigned:
+
+```bash
+docker run --rm \
+  -v "$PWD:/usr/src/qfield" \
+  -v qfield-build-arm64:/usr/src/build \
+  -v qfield-gradle-cache:/root/.gradle \
+  qfield_and_dev bash -lc '
+    set -e
+    mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a
+    cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so \
+      /usr/src/build/src/app/android-build/libs/arm64-v8a/
+    /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt \
+      --input /usr/src/build/src/app/android-qfield-deployment-settings.json \
+      --output /usr/src/build/src/app/android-build \
+      --deployment bundled --android-platform android-36 --gradle --release
+    mkdir -p /usr/src/qfield/artifacts
+    cp /usr/src/build/src/app/android-build/build/outputs/apk/release/\
+      android-build-release-unsigned.apk \
+      /usr/src/qfield/artifacts/android-build-release-unsigned.apk
+  '
+```
+
+Nếu cần APK có chữ ký custom, dùng `apksigner` trong cùng Docker image với
+`STOREPASS` và `KEYPASS` lấy từ `keystore.properties`. Không ghi password vào
+command history hoặc commit vào repository.
+
+## 5. Khi nào cần build lại image hoặc xóa cache
+
+- Chỉ sửa C++/QML: dùng lại image và volume, build incremental.
+- Sửa Dockerfile, Android SDK/NDK hoặc Qt: build lại image.
+- Đổi dependency trong `vcpkg.json`: nên build lại dependency cache.
+- Nghi ngờ APK chứa artifact cũ: tạo volume build mới thay vì dùng lại
+  `qfield-build-arm64`.
+
+Kích thước APK có thể khác giữa hai máy nếu Docker image, Qt/NDK, vcpkg cache
+hoặc trạng thái strip native libraries khác nhau. Cùng source và cùng ABI
+`arm64-v8a` chưa đảm bảo byte-for-byte giống nhau nếu cache khác.
+
+## 6. Cleanup Docker để giải phóng disk
+
+Build QField dùng hai Docker volume:
+
+```text
+qfield-build-arm64
+qfield-gradle-cache
+```
+
+Volume `qfield-build-arm64` chứa build tree, vcpkg và các thư viện đã compile;
+volume `qfield-gradle-cache` chứa Gradle cache. Có thể xóa chúng, nhưng lần
+build tiếp theo sẽ phải tải và compile dependency lại từ đầu.
+
+### Kiểm tra dung lượng trước khi xóa
+
+```powershell
+docker system df -v
+docker volume ls --filter name=qfield
+```
+
+### Cách an toàn: xóa riêng cache Gradle
+
+Nếu muốn giữ lại dependency native đã compile:
+
+```powershell
+docker volume rm qfield-gradle-cache
+```
+
+Lần build sau Docker/Gradle sẽ tải lại các dependency Java cần thiết.
+
+### Xóa toàn bộ cache build QField
+
+Chỉ chạy khi chấp nhận build lại dependency:
+
+```powershell
+docker volume rm qfield-build-arm64 qfield-gradle-cache
+```
+
+Sau đó build lại image và volume bằng:
+
+```powershell
+.\scripts\build-custom-release.ps1 `
+  -VersionCode 7 `
+  -VersionName "1.0.6 - Custom" `
+  -BuildDockerImage
+```
+
+Nếu volume đang được container sử dụng, dừng container trước rồi chạy lại lệnh
+cleanup. Không xóa volume khi đang có build chạy.
+
+### Dọn Docker toàn hệ thống
+
+Chỉ dùng khi muốn xóa mọi resource không còn được Docker sử dụng:
+
+```powershell
+docker system prune
+```
+
+Lệnh trên có thể xóa stopped containers, unused networks và dangling images.
+Không dùng `--volumes` nếu chưa chắc chắn, vì tùy chọn đó có thể xóa volume của
+các project khác. Nếu muốn xem trước, chạy:
+
+```powershell
+docker system df -v
+```
+
+Các file trong `artifacts/`, `build-arm64-android-release/` và các file Android
+local vẫn nằm trên filesystem của repository; cleanup Docker volume không xóa
+chúng. Xóa các artifact cũ thủ công sau khi đã xác nhận không còn cần dùng.

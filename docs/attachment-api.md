@@ -1,22 +1,24 @@
 # QField Attachment API
 
-API này được expose cho QML plugin thông qua context property
+QField expose API này cho QML plugin thông qua context property
 `QFieldAttachmentUploader`.
 
 Implementation:
 
-- `src/core/qfattachmentuploader.h`
-- `src/core/qfattachmentuploader.cpp`
-- `src/app/qgismobileapp.cpp`
+- [`qfattachmentuploader.h`](../src/core/qfattachmentuploader.h)
+- [`qfattachmentuploader.cpp`](../src/core/qfattachmentuploader.cpp)
+- [`qgismobileapp.cpp`](../src/app/qgismobileapp.cpp)
+- [`qfxmlhttprequest.cpp`](../src/core/qfxmlhttprequest.cpp)
 
 ## Requirements
 
-- QField APK phải được build từ source có `QFieldAttachmentUploader`.
-- Server phải là ArcGIS FeatureServer hỗ trợ attachments.
+- APK phải được build từ source có `QFieldAttachmentUploader`.
+- Server phải hỗ trợ ArcGIS FeatureServer attachments.
 - Cần có `featureServer`, `layerId`, `objectId` và token hợp lệ.
-- File upload phải là file local được QField cho phép đọc.
+- File upload phải là file local nằm trong vùng đường dẫn mà QField cho phép
+  đọc.
 
-## Upload attachment
+## Upload attachment theo ArcGIS
 
 ### QML method
 
@@ -47,13 +49,20 @@ POST {featureServer}/{layerId}/{objectId}/addAttachment
 Content-Type: multipart/form-data
 ```
 
-Multipart fields:
+Multipart fields được gửi theo thứ tự text fields trước, file sau:
 
 ```text
 f=json
 token={token}
 attachment=<local file>
 ```
+
+Thứ tự này quan trọng với một số endpoint ArcGIS. File được gửi với field name
+`attachment` và filename lấy từ tên file local.
+
+Nếu file không hợp lệ, không tồn tại, không mở được hoặc bị policy đường dẫn
+của QField chặn, phần file không được upload thành công. Không nên coi response
+HTTP thành công là bằng chứng file đã được lưu.
 
 ### Successful response
 
@@ -67,8 +76,9 @@ attachment=<local file>
 ```
 
 `objectId` trong response là ID của attachment, không phải OBJECTID của feature.
+Luôn kiểm tra cả HTTP status và `addAttachmentResult.success`.
 
-## Verify attachment
+## Query attachments
 
 ### QML method
 
@@ -110,36 +120,34 @@ GET {featureServer}/{layerId}/queryAttachments
 }
 ```
 
-An empty `attachmentGroups` array means that the feature currently has no
-attachments.
+`attachmentGroups: []` nghĩa là feature hiện chưa có attachment.
 
-## Recommended upload and verification flow
+## Flow upload và kiểm tra
 
-The upload request must finish successfully before the verification request is
-started:
+Phải chờ upload hoàn tất thành công trước khi gọi query:
 
 ```qml
 function uploadAndVerify(filePath, featureServer, layerId, objectId, token) {
     var upload = QFieldAttachmentUploader.uploadArcgisAttachment(
-        filePath,
-        featureServer,
-        layerId,
-        objectId,
-        token
+        filePath, featureServer, layerId, objectId, token
     )
 
     upload.onload = function() {
         if (upload.status < 200 || upload.status >= 300) {
-            console.log("Attachment upload failed:", upload.status,
-                        upload.responseText)
+            console.log("Attachment upload failed:",
+                        upload.status, upload.responseText)
+            return
+        }
+
+        var result = JSON.parse(upload.responseText)
+        if (!result.addAttachmentResult ||
+            !result.addAttachmentResult.success) {
+            console.log("ArcGIS rejected attachment:", upload.responseText)
             return
         }
 
         var check = QFieldAttachmentUploader.queryArcgisAttachments(
-            featureServer,
-            layerId,
-            objectId,
-            token
+            featureServer, layerId, objectId, token
         )
 
         check.onload = function() {
@@ -154,12 +162,12 @@ function uploadAndVerify(filePath, featureServer, layerId, objectId, token) {
 }
 ```
 
-`onload` is called for HTTP responses, including HTTP errors. Always inspect
-`status` and `responseText`.
+`onload` được gọi cho cả HTTP response thành công và HTTP error. Luôn kiểm tra
+`status`, `responseText` và nội dung JSON.
 
 ## Generic upload method
 
-The lower-level method is also available:
+Method cấp thấp hơn:
 
 ```qml
 QFieldAttachmentUploader.upload(
@@ -170,23 +178,27 @@ QFieldAttachmentUploader.upload(
 )
 ```
 
-The file is always sent as a multipart field named `attachment`. `headers`
-contains HTTP headers, while `formFields` contains additional multipart form
-fields. For ArcGIS uploads, prefer `uploadArcgisAttachment()` because it sets
-the endpoint and required `f`/`token` fields correctly.
+- `filePath`: file local được gửi dưới field name `attachment`.
+- `url`: endpoint POST.
+- `headers`: HTTP request headers.
+- `formFields`: các multipart text fields bổ sung.
+
+Field `attachment` do API tạo ra sẽ ghi đè field cùng tên trong `formFields`.
+Với ArcGIS, nên dùng `uploadArcgisAttachment()` để endpoint và hai field `f`/
+`token` được tạo đúng.
 
 ## Security and operational notes
 
-- Do not hard-code tokens in a plugin ZIP or source repository.
-- Use short-lived tokens where possible and rotate tokens that were exposed.
-- Do not log the token or include it in user-visible error messages.
-- Validate the file path and file type in the plugin before starting upload.
-- Treat HTTP status `200` alone as insufficient; inspect the ArcGIS JSON
-  response and require `success: true` for the upload result.
+- Không hard-code token trong plugin ZIP hoặc source repository.
+- Dùng token ngắn hạn nếu có thể và rotate token đã bị lộ.
+- Không log token hoặc đưa token vào thông báo lỗi cho người dùng.
+- Validate file path và file type trong plugin trước khi upload.
+- Kiểm tra `addAttachmentResult.success`, không chỉ kiểm tra HTTP status 200.
+- Không đưa `keystore.properties` hoặc keystore vào Git.
 
 ## Reference
 
-The request format is based on:
+Request format dựa trên:
 
 - `GIS-upload-attachment.postman_collection.json`
 - ArcGIS FeatureServer `addAttachment`

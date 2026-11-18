@@ -58,8 +58,8 @@ rm -f android-sdk-10406996.zip
 shopt -s extglob
 mkdir /android-sdk/cmdline-tools/latest
 mv /android-sdk/cmdline-tools/!(latest) /android-sdk/cmdline-tools/latest
-yes | /android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-/android-sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.1" "platform-tools" "tools" "ndk;${ANDROID_NDK_VERSION}"
+yes | /android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/android-sdk --licenses
+/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/android-sdk "platforms;android-35" "platforms;android-36" "build-tools;35.0.1" "platform-tools" "ndk;${ANDROID_NDK_VERSION}"
 END_OF_SCRIPT
 
 ENV ANDROID_SDK_ROOT /android-sdk
