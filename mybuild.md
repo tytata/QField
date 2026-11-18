@@ -194,8 +194,10 @@ docker run --rm \
       --output /usr/src/build/src/app/android-build \
       --deployment bundled --android-platform android-36 --gradle --release --no-build
     mkdir -p /usr/src/qfield/artifacts
-    cp /usr/src/build/src/app/android-build/build/outputs/apk/release/\
-      android-build-release-unsigned.apk \
+    generated_apk=$(find /usr/src/build/src/app/android-build/build/outputs/apk \
+      -type f -name 'android-build-release-unsigned.apk' -print -quit)
+    test -n "$generated_apk"
+    cp "$generated_apk" \
       /usr/src/qfield/artifacts/android-build-release-unsigned.apk
   '
 ```
