@@ -1,5 +1,9 @@
 # Build QField custom
 
+## Kiểm tra native attachment preprocessing
+
+Sau khi thay đổi `src/core/utils/qffileutils.h/.cpp`, phải build lại native QField và tạo APK mới; chỉ cập nhật ZIP plugin không đủ. Cài APK mới, chạy một attachment test và kiểm tra `arcgis_sync_debug.log` có dòng `Attachment image optimized=true` với `bytes<900000`. Nếu log ghi `Attachment image optimization API unavailable`, APK đang dùng artifact native cũ; hãy tạo build directory/volume mới hoặc clean incremental build rồi build lại.
+
 Tài liệu này mô tả source hiện tại trên nhánh `dev`, gồm API upload attachment
 và quy trình tạo APK Android custom.
 

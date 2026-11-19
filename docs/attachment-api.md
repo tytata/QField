@@ -1,5 +1,9 @@
 # QField Attachment API
 
+## Image optimization API
+
+Custom QField builds used with ArcGIS Sync expose `QfFileUtils.optimizeImageForAttachment()` in addition to `QFieldAttachmentUploader`. The plugin uses it immediately before upload to resize within `1920×1080`, encode JPEG quality `85`, reduce the file below `900 KB`, and draw GPS, system time, asset identifier, and operator code onto the image. The operator code is the Auth Service login username unless a dedicated worker-code field exists. Missing values use `N/A`. Verify the runtime log contains `Attachment image optimized=true`; an APK without this native method is incompatible with the preprocessing contract. HTTP `413 Request Entity Too Large` is not retryable.
+
 QField expose API này cho QML plugin thông qua context property
 `QFieldAttachmentUploader`.
 
