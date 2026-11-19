@@ -906,7 +906,10 @@ QHttpMultiPart *QfXmlHttpRequest::buildMultipart( const QVariant &body ) const
   {
     if ( !appendFilePart( filePart.fieldName, filePart.fileUrl ) )
     {
-      appendTextPart( filePart.fieldName, filePart.fallbackText );
+      qWarning() << "QFieldXmlHttpRequest: unable to attach local file part:"
+                 << filePart.fileUrl;
+      delete multipartBody;
+      return nullptr;
     }
   }
 
