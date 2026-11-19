@@ -15,6 +15,7 @@
  ***************************************************************************/
 
 #include "platforms/qfplatformutilities.h"
+#include <algorithm>
 #include "qfcloudutils.h"
 #include "qffileutils.h"
 #include "qfgnsspositioninformation.h"
@@ -361,6 +362,74 @@ void QfFileUtils::restrictImageSize( const QString &imagePath, int maximumWidthH
       QgsExifTools::tagImage( imagePath, key, metadata[key] );
     }
   }
+}
+
+bool QfFileUtils::optimizeImageForAttachment( const QString &imagePath,
+    const QString &watermarkText,
+    int maximumWidth,
+    int maximumHeight,
+    int quality,
+    qint64 maximumBytes )
+{
+  if ( imagePath.isEmpty() || !QFileInfo::exists( imagePath ) || maximumWidth <= 0 || maximumHeight <= 0 )
+    return false;
+
+  QImageReader reader( imagePath );
+  reader.setAutoTransform( true );
+  QImage image = reader.read();
+  if ( image.isNull() )
+    return false;
+
+  const QSize maximumSize( maximumWidth, maximumHeight );
+  if ( image.width() > maximumWidth || image.height() > maximumHeight )
+    image = image.scaled( maximumSize, Qt::KeepAspectRatio, Qt::SmoothTransformation );
+
+  if ( !watermarkText.trimmed().isEmpty() )
+  {
+    QPainter painter( &image );
+    painter.setRenderHint( QPainter::Antialiasing );
+    QFont font = painter.font();
+    font.setPixelSize( std::max( 16, std::min( image.width(), image.height() ) / 42 ) );
+    font.setBold( true );
+    painter.setFont( font );
+
+    const int margin = std::max( 12, font.pixelSize() / 2 );
+    const QRect textArea( margin,
+                          margin,
+                          std::max( 1, image.width() - 2 * margin ),
+                          std::max( 1, image.height() - 2 * margin ) );
+    const QRect textRect = painter.boundingRect( textArea,
+        Qt::AlignLeft | Qt::AlignBottom | Qt::TextWordWrap, watermarkText );
+    const QRect background = textRect.adjusted( -margin / 2, -margin / 2, margin / 2, margin / 2 );
+    painter.fillRect( background, QColor( 0, 0, 0, 165 ) );
+    painter.setPen( Qt::white );
+    painter.drawText( textArea, Qt::AlignLeft | Qt::AlignBottom | Qt::TextWordWrap, watermarkText );
+  }
+
+  quality = std::clamp( quality, 40, 95 );
+  maximumBytes = std::max<qint64>( maximumBytes, 64 * 1024 );
+
+  // Start at the requested quality and lower it gradually. If a particularly
+  // detailed photo is still too large, reduce its dimensions as a last resort.
+  for ( int pass = 0; pass < 4; ++pass )
+  {
+    for ( int currentQuality = quality; currentQuality >= 45; currentQuality -= 5 )
+    {
+      if ( !image.save( imagePath, "JPEG", currentQuality ) )
+        return false;
+      if ( QFileInfo( imagePath ).size() < maximumBytes )
+        return true;
+    }
+
+    const int nextWidth = static_cast<int>( image.width() * 0.85 );
+    const int nextHeight = static_cast<int>( image.height() * 0.85 );
+    if ( nextWidth < 640 || nextHeight < 480 )
+      break;
+    image = image.scaled( nextWidth, nextHeight, Qt::KeepAspectRatio, Qt::SmoothTransformation );
+    quality = 80;
+  }
+
+  return QFileInfo( imagePath ).size() < maximumBytes;
 }
 
 void QfFileUtils::addImageMetadata( const QString &imagePath, const QfGnssPositionInformation &positionInformation )

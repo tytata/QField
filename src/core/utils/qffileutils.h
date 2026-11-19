@@ -114,6 +114,19 @@ class QFIELD_CORE_EXPORT QfFileUtils : public QObject
     Q_INVOKABLE static void restrictImageSize( const QString &imagePath, int maximumWidthHeight );
 
     /**
+     * Optimizes a captured image for field attachment upload.
+     * The image is resized to fit within the requested bounds, stamped with
+     * the supplied text, encoded as JPEG, and recompressed until it fits the
+     * requested byte limit.
+     */
+    Q_INVOKABLE static bool optimizeImageForAttachment( const QString &imagePath,
+                                                        const QString &watermarkText,
+                                                        int maximumWidth,
+                                                        int maximumHeight,
+                                                        int quality,
+                                                        qint64 maximumBytes );
+
+    /**
      * Adds positioning metadata to a given image.
      * \param imagePath the image path
      * \param positionInformation the GNSS position information used to add metadata details
