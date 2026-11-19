@@ -136,13 +136,9 @@ mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a
 cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so /usr/src/build/src/app/android-build/libs/arm64-v8a/
 /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --copy-dependencies-only
 find /usr/src/build/src/app/android-build/libs/arm64-v8a -type f -name '*.so' -exec "`$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" --strip-debug {} +
-/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release --no-build
-GeneratedApk=`$(find /usr/src/build/src/app/android-build/build/outputs/apk -type f -name 'android-build-release-unsigned.apk' -print -quit)
-if [ -z "`$GeneratedApk" ]; then
-  echo "Không tìm thấy APK unsigned sau khi androiddeployqt chạy xong."
-  exit 1
-fi
-cp "`$GeneratedApk" $UnsignedApk
+/usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt --input /usr/src/build/src/app/android-qfield-deployment-settings.json --output /usr/src/build/src/app/android-build --deployment bundled --android-platform android-36 --gradle --release
+test -f /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk
+cp /usr/src/build/src/app/android-build/build/outputs/apk/release/android-build-release-unsigned.apk $UnsignedApk
 "@
 Invoke-DockerBash $PackageCommand
 

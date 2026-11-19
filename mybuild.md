@@ -192,7 +192,7 @@ docker run --rm \
     /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt \
       --input /usr/src/build/src/app/android-qfield-deployment-settings.json \
       --output /usr/src/build/src/app/android-build \
-      --deployment bundled --android-platform android-36 --gradle --release --no-build
+      --deployment bundled --android-platform android-36 --gradle --release
     mkdir -p /usr/src/qfield/artifacts
     generated_apk=$(find /usr/src/build/src/app/android-build/build/outputs/apk \
       -type f -name 'android-build-release-unsigned.apk' -print -quit)
