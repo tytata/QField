@@ -138,77 +138,9 @@ Script này tạo build directory `build-x64-linux`.
 
 ### 4.2. Build APK Android custom bằng Docker
 
-Trên Linux, dùng Docker image giống Windows để kết quả không phụ thuộc Qt,
-NDK và Gradle cài trực tiếp trên máy:
-
-```bash
-git switch dev
-git pull --ff-only origin dev
-docker build .docker/android_dev -t qfield_and_dev
-docker volume create qfield-build-arm64 2>/dev/null || true
-docker volume create qfield-gradle-cache 2>/dev/null || true
-```
-
-Copy hai file local vào `platform/android/`, sau đó configure và build:
-
-```bash
-docker run --rm \
-  -v "$PWD:/usr/src/qfield" \
-  -v qfield-build-arm64:/usr/src/build \
-  -v qfield-gradle-cache:/root/.gradle \
-  qfield_and_dev bash -lc '
-    set -e
-    cmake -S /usr/src/qfield -B /usr/src/build -G Ninja \
-      -DAPP_PACKAGE_NAME=qfield \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DANDROID_SDK_ROOT=/android-sdk \
-      -DVCPKG_TARGET_TRIPLET=arm64-android \
-      -DWITH_SPIX=OFF \
-      -DWITH_ALL_FILES_ACCESS=OFF \
-      -DAPK_VERSION_CODE=7 \
-      -DAPP_VERSION_STR="1.0.6 - Custom"
-    cmake --build /usr/src/build --target qfield -j2
-  '
-```
-
-Đóng gói APK unsigned:
-
-```bash
-docker run --rm \
-  -v "$PWD:/usr/src/qfield" \
-  -v qfield-build-arm64:/usr/src/build \
-  -v qfield-gradle-cache:/root/.gradle \
-  qfield_and_dev bash -lc '
-    set -e
-    rm -rf /usr/src/build/src/app/android-build
-    mkdir -p /usr/src/build/src/app/android-build/libs/arm64-v8a
-    cp /usr/src/build/android-build/lib/libqfield_arm64-v8a.so \
-      /usr/src/build/src/app/android-build/libs/arm64-v8a/
-    /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt \
-      --input /usr/src/build/src/app/android-qfield-deployment-settings.json \
-      --output /usr/src/build/src/app/android-build \
-      --deployment bundled --android-platform android-36 \
-      --copy-dependencies-only
-    find /usr/src/build/src/app/android-build/libs/arm64-v8a \
-      -type f -name '*.so' \
-      -exec "\$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" \
-      --strip-debug {} +
-    /usr/src/build/vcpkg_installed/x64-linux/tools/Qt6/bin/androiddeployqt \
-      --input /usr/src/build/src/app/android-qfield-deployment-settings.json \
-      --output /usr/src/build/src/app/android-build \
-      --deployment bundled --android-platform android-36 --gradle --release
-    mkdir -p /usr/src/qfield/artifacts
-    generated_apk=$(find /usr/src/build/src/app/android-build/build/outputs/apk \
-      -type f -name 'android-build-release-unsigned.apk' -print -quit)
-    test -n "$generated_apk"
-    cp "$generated_apk" \
-      /usr/src/qfield/artifacts/android-build-release-unsigned.apk
-  '
-```
-
-Nếu cần APK có chữ ký custom, dùng `apksigner` trong cùng Docker image với
-`STOREPASS` và `KEYPASS` lấy từ `keystore.properties`. Không ghi password vào
-command history hoặc commit vào repository.
+Hướng dẫn build, ký và kiểm tra APK custom trên Linux nằm trong
+[`mybuild-linux.md`](mybuild-linux.md). Quy trình này tạo APK trong
+`artifacts/`; copy hoặc upload APK sang nơi khác được thực hiện thủ công.
 
 ## 5. Khi nào cần build lại image hoặc xóa cache
 
