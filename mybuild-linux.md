@@ -100,67 +100,85 @@ Không dùng APK `*-unsigned.apk` để cài đặt hoặc phân phối.
 
 ## 4. Copy APK từ Linux sang Windows qua SSH
 
-Chỉ copy APK đã ký có version cụ thể, không dùng wildcard và không copy file
-`*-unsigned.apk`. Chạy các lệnh sau từ thư mục gốc của repository:
+Phần này thực hiện **trên Windows** để tải APK từ máy Linux. Chỉ lấy APK đã ký
+có version cụ thể; không dùng wildcard và không tải file
+`*-unsigned.apk`.
+
+Máy Linux cần bật Tailscale và chạy OpenSSH Server (`sshd`); tài khoản Linux
+cần có quyền đọc APK. Trên Linux, kiểm tra SSH server đang chạy và lấy Tailscale
+IPv4 bằng:
 
 ```bash
-APK="$(pwd -P)/artifacts/android-build-release-custom-v7.apk"
-test -f "$APK"
-ls -lh "$APK"
+sudo systemctl status ssh
+tailscale ip -4
 ```
 
-Máy Windows cần bật Tailscale và chạy OpenSSH Server (`sshd`); tài khoản SSH
-phải có quyền ghi vào thư mục đích. Nếu chưa cài OpenSSH Server, mở PowerShell
-với quyền Administrator trên Windows và chạy:
+Nếu SSH server chưa được cài trên Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+sudo systemctl enable --now ssh
+```
+
+Cho phép kết nối SSH qua Tailscale theo firewall hiện có. Không cần mở SSH ra
+Internet hoặc cấu hình port forwarding trên router. Windows cần có Tailscale
+đang kết nối cùng tailnet và OpenSSH Client (`ssh`, `scp`). Mở PowerShell và
+chuyển vào thư mục nhận APK để tránh nhầm dấu `:` trong đường dẫn Windows:
 
 ```powershell
-Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-Set-Service -Name sshd -StartupType Automatic
-Start-Service sshd
+Set-Location "$env:USERPROFILE\Downloads"
 ```
 
-Đảm bảo firewall cho phép SSH (TCP 22) qua Tailscale. Không cần mở cổng SSH ra
-Internet hoặc cấu hình port forwarding trên router. Trên Windows, lấy Tailscale
-IPv4 bằng `tailscale ip -4`; từ Linux, có thể kiểm tra kết nối bằng `ssh`.
+Thay `/home/LINUX_USER/QField` trong ví dụ bằng đường dẫn tuyệt đối thật tới
+repository trên máy Linux.
 
 ### Cách 1: Dùng Tailscale IP
 
-```bash
-ssh "WIN_USER@100.101.102.103"
+Trong PowerShell trên Windows, thử kết nối:
+
+```powershell
+ssh LINUX_USER@100.101.102.103
 ```
 
-Sau khi xác nhận đăng nhập được, thoát khỏi SSH rồi copy APK:
+Thoát phiên SSH rồi tải APK đã ký:
 
-```bash
-scp "$APK" "WIN_USER@100.101.102.103:C:/Users/WIN_USER/Downloads/"
+```powershell
+scp LINUX_USER@100.101.102.103:/home/LINUX_USER/QField/artifacts/android-build-release-custom-v7.apk .
 ```
 
-Thay `WIN_USER`, địa chỉ IP và thư mục `C:/Users/...` bằng tài khoản, Tailscale
-IP và đường dẫn profile Windows thực tế. Dùng dấu `/` trong đường dẫn đích
-Windows. Có thể kiểm tra thư mục profile bằng `$env:USERPROFILE` trong
-PowerShell; tên thư mục profile không phải lúc nào cũng trùng tên đăng nhập SSH.
+Thay `LINUX_USER`, Tailscale IP, đường dẫn source và `v7` theo máy/version
+thực tế. Dấu `.` là thư mục hiện tại trên Windows (`Downloads`).
 
 ### Cách 2: Dùng SSH alias
 
-Trên Linux, thêm cấu hình vào `~/.ssh/config`:
+Trên Windows, tạo hoặc sửa file `$env:USERPROFILE\.ssh\config` (không có đuôi
+`.txt`) và thêm:
 
 ```sshconfig
-Host qfield-windows
+Host qfield-linux
   HostName 100.101.102.103
-  User WIN_USER
+  User LINUX_USER
   Port 22
 ```
 
-Thay IP và username bằng giá trị thực tế. Nếu SSH key không nằm ở vị trí mặc
-định, thêm `IdentityFile ~/.ssh/<ten-key>`. Sau đó kiểm tra kết nối và copy:
+Thay IP và username bằng giá trị thực tế. Nếu dùng SSH private key không ở vị
+trí mặc định, thêm `IdentityFile C:/Users/WIN_USER/.ssh/<ten-key>`. Trong
+PowerShell trên Windows, kiểm tra alias rồi tải APK:
 
-```bash
-ssh qfield-windows
-scp "$APK" "qfield-windows:C:/Users/WIN_USER/Downloads/"
+```powershell
+ssh qfield-linux
+scp qfield-linux:/home/LINUX_USER/QField/artifacts/android-build-release-custom-v7.apk .
 ```
 
-Hai cách trên dùng OpenSSH Server của Windows qua mạng Tailscale. Thư mục
-Downloads trên Windows sẽ chỉ nhận file APK đã chọn.
+Sau khi truyền xong, xác nhận file đã về Windows:
+
+```powershell
+Get-Item .\android-build-release-custom-v7.apk
+```
+
+Hai cách trên đều khởi tạo lệnh `scp` từ Windows và kéo đúng một APK đã ký từ
+Linux; không cần bật OpenSSH Server trên Windows.
 
 ## 5. Cache và rebuild
 
